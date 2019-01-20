@@ -68,15 +68,6 @@ public class RightTrinityAutonomous extends LinearOpMode {
     public Servo collectServo;
     public ModernRoboticsI2cGyro gyro;
     private GoldAlignDetector detector;
-    private static final VuforiaLocalizer.CameraDirection CAMERA_CHOICE = BACK;
-    WebcamName webcamName;
-    Dogeforia vuforia;
-    List<VuforiaTrackable> allTrackables = new ArrayList<VuforiaTrackable>();
-
-    private ElapsedTime runtime = new ElapsedTime();
-    private static final float mmPerInch        = 25.4f;
-    private static final float mmFTCFieldWidth  = (12*6) * mmPerInch;       // the width of the FTC field (from the center point to the outer panels)
-    private static final float mmTargetHeight   = (6) * mmPerInch;          // the height of the center of the target image above the floor
 
     @Override
     public void runOpMode() throws InterruptedException
@@ -98,7 +89,6 @@ public class RightTrinityAutonomous extends LinearOpMode {
         liftMotor.setDirection(DcMotor.Direction.REVERSE);
         armMotor.setDirection(DcMotor.Direction.REVERSE);
         gyro = (ModernRoboticsI2cGyro) hardwareMap.get("gyro");
-        webcamName = hardwareMap.get(WebcamName.class, "Webcam 1");
 
         // Send telemetry message to alert driver that we are calibrating;
         telemetry.addData(">", "Calibrating Gyro");    //
@@ -136,63 +126,30 @@ public class RightTrinityAutonomous extends LinearOpMode {
 
             telemetry.addData("Status", "Good Luck Drivers");
 
-            // Set up parameters for Vuforia
-            int cameraMonitorViewId = hardwareMap.appContext.getResources().getIdentifier("cameraMonitorViewId", "id", hardwareMap.appContext.getPackageName());
-            VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
-
-            // Vuforia licence key
-            parameters.vuforiaLicenseKey = "AX40NPb/////AAABmWzlHnKJi0nuq3wajaHxlcCMF0ZLxRs4AEtkt1PP4v6QjOwoH4CxiTATq674CdaLumg2ZnH7395KGAYmbp24PKYaSQ+plebKP7GiXVMaNWYplDCTKJEIirTBOqpX3C2pVRhFwzGmDs2MtDlNMa1hxHZ8jStPwHRFR/nCkLQ96QGn3BLfDvZtT5Dbsdh5/Tsegpsyky++xnpC8zIhPNgdO1kDl+mq/JXbbaeJFkQpD5Tokcwlg+GeN0tTdgALRkAbBzx13LWm8spVQFIN5eB/U+lxyPGFykMQXcS4UejkN1uooE8FvA6qFQMaddFqvAMEgY4Q43EV/+PjTaNqep/4ZnPAr3ySSAewf3ClIzoAnzgK";
-            parameters.fillCameraMonitorViewParent = true;
-
-            // Set camera name for Vuforia config
-            parameters.cameraName = webcamName;
-
-            // Create Dogeforia object
-            vuforia = new Dogeforia(parameters);
-            vuforia.enableConvertFrameToBitmap();
-
-            //Setup trackables
-            VuforiaTrackables targetsRoverRuckus = this.vuforia.loadTrackablesFromAsset("RoverRuckus");
-            // For convenience, gather together all the trackable objects in one easily-iterable collection */
-
-            final int CAMERA_FORWARD_DISPLACEMENT  = 110;   // eg: Camera is 110 mm in front of robot center
-            final int CAMERA_VERTICAL_DISPLACEMENT = 200;   // eg: Camera is 200 mm above ground
-            final int CAMERA_LEFT_DISPLACEMENT     = 0;     // eg: Camera is ON the robot's center line
-
-            OpenGLMatrix phoneLocationOnRobot = OpenGLMatrix
-                    .translation(CAMERA_FORWARD_DISPLACEMENT, CAMERA_LEFT_DISPLACEMENT, CAMERA_VERTICAL_DISPLACEMENT)
-                    .multiplied(Orientation.getRotationMatrix(EXTRINSIC, YZX, DEGREES,
-                            CAMERA_CHOICE == FRONT ? 90 : -90, 0, 0));
-
-            for (VuforiaTrackable trackable : allTrackables)
-            {
-                ((VuforiaTrackableDefaultListener)trackable.getListener()).setPhoneInformation(phoneLocationOnRobot, parameters.cameraDirection);
-            }
-
-            // Activate the targets
-            targetsRoverRuckus.activate();
-
             // Initialize the detector
             detector = new GoldAlignDetector();
-            detector.init(hardwareMap.appContext,CameraViewDisplay.getInstance(), 0, true);
+            detector.init(hardwareMap.appContext,CameraViewDisplay.getInstance());
             detector.useDefaults();
-            detector.areaScoringMethod = DogeCV.AreaScoringMethod.MAX_AREA; // Can also be PERFECT_AREA
-            //detector.perfectAreaScorer.perfectArea = 10000; // if using PERFECT_AREA scoring
-            detector.downscale = 0.8;
 
-            // Set the detector
-            vuforia.setDogeCVDetector(detector);
-            vuforia.enableDogeCV();
-            vuforia.showDebug();
-            vuforia.start();
-            sleep(1500);
+            // Optional Tuning
+            detector.alignPosOffset = 0; // How far from center frame to offset this alignment zone.
+            detector.downscale = 0.4; // How much to downscale the input frames
+
+            detector.areaScoringMethod = DogeCV.AreaScoringMethod.MAX_AREA; // Can also be PERFECT_AREA
+            detector.maxAreaScorer.weight = 0.005;
+
+            detector.ratioScorer.weight = 5;
+            detector.ratioScorer.perfectRatio = 1.0;
 
             gyro.resetZAxisIntegrator();
+
+            detector.enable();
+            sleep(1500);
 
             //Center
             if (detector.getXPosition() > 180 && detector.getXPosition() < 420)
             {
-                vuforia.stop();
+                detector.disable();
                 Lift(DRIVE_SPEED, value);
                 gyroTurn(DRIVE_SPEED, 45);
                 gyroHold(DRIVE_SPEED, 45, 0.5);
@@ -216,7 +173,7 @@ public class RightTrinityAutonomous extends LinearOpMode {
             //Right
             else if (detector.getXPosition() > 420)
             {
-                vuforia.stop();
+                detector.disable();
                 Lift(DRIVE_SPEED, value);
                 gyroTurn(DRIVE_SPEED, 45);
                 gyroHold(DRIVE_SPEED, 45, 0.5);
@@ -242,7 +199,7 @@ public class RightTrinityAutonomous extends LinearOpMode {
             //Left
             else if (detector.getXPosition() < 180)
             {
-                vuforia.stop();
+                detector.disable();
                 Lift(DRIVE_SPEED,value);
                 gyroTurn(DRIVE_SPEED, 45);
                 gyroHold(DRIVE_SPEED, 45, 0.5);

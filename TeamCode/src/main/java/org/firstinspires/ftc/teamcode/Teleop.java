@@ -4,12 +4,13 @@ import  com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
-import com.qualcomm.robotcore.hardware.DcMotorSimple;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.Range;
+
 /**
  * Created by Manjesh on 12/4/2018.
  */
+
 @TeleOp(name = "Trinity Competition Tele-Op")
 public class Teleop extends LinearOpMode
 {
@@ -18,18 +19,21 @@ public class Teleop extends LinearOpMode
     public DcMotor leftMotorFront;
     public DcMotor rightMotorBack;
     public DcMotor leftMotorBack;
-    public DcMotor leftArmMotor;
-    public DcMotor rightArmMotor;
+    //    public DcMotor leftArmMotor;
+//    public DcMotor rightArmMotor;
     public DcMotor liftMotor;
+    public DcMotor armMotor;
 
     //Servo Count -- 7 / 12
-    public CRServo sweepServo;
-    public CRServo rightExtendServo;
-    public CRServo leftExtendServo;
-    public CRServo rightRotateServo;
-    public CRServo leftRotateServo;
+//    public CRServo sweepServo;
+//    public CRServo rightExtendServo;
+//    public CRServo leftExtendServo;
+//    public CRServo rightRotateServo;
+//    public CRServo leftRotateServo;
     public Servo flickServo;
     public Servo liftpushServo;
+    public CRServo extendServo;
+    public Servo collectServo;
 
     @Override
     public void runOpMode() throws InterruptedException
@@ -37,17 +41,20 @@ public class Teleop extends LinearOpMode
         rightMotorFront = hardwareMap.dcMotor.get("rightMotorFront");
         leftMotorFront = hardwareMap.dcMotor.get("leftMotorFront");
         rightMotorBack = hardwareMap.dcMotor.get("rightMotorBack");
-        leftMotorBack = hardwareMap.dcMotor.get("leftMotorBack");
-        leftArmMotor = hardwareMap.dcMotor.get("leftArmMotor");
-        rightArmMotor = hardwareMap.dcMotor.get("rightArmMotor");
+//        leftMotorBack = hardwareMap.dcMotor.get("leftMotorBack");
+//        leftArmMotor = hardwareMap.dcMotor.get("leftArmMotor");
+//        rightArmMotor = hardwareMap.dcMotor.get("rightArmMotor");
         liftMotor = hardwareMap.dcMotor.get("liftMotor");
-        sweepServo = hardwareMap.crservo.get("sweepServo");
-        rightExtendServo = hardwareMap.crservo.get("rightExtendServo");
-        leftExtendServo = hardwareMap.crservo.get("leftExtendServo");
-        rightRotateServo = hardwareMap.crservo.get("rightExtendServo");
-        leftRotateServo = hardwareMap.crservo.get("leftExtendServo");
+        armMotor = hardwareMap.dcMotor.get("armMotor");
+//        sweepServo = hardwareMap.crservo.get("sweepServo");
+//        rightExtendServo = hardwareMap.crservo.get("rightExtendServo");
+//        leftExtendServo = hardwareMap.crservo.get("leftExtendServo");
+//        rightRotateServo = hardwareMap.crservo.get("rightExtendServo");
+//        leftRotateServo = hardwareMap.crservo.get("leftExtendServo");
         flickServo = hardwareMap.servo.get("flickServo");
         liftpushServo = hardwareMap.servo.get("liftpushServo");
+        extendServo = hardwareMap.crservo.get("extendServo");
+        collectServo = hardwareMap.servo.get("collectServo");
         leftMotorBack.setDirection(DcMotor.Direction.FORWARD);
         leftMotorFront.setDirection(DcMotor.Direction.FORWARD);
         rightMotorFront.setDirection(DcMotor.Direction.REVERSE);
