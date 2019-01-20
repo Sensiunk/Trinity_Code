@@ -3,50 +3,53 @@ package org.firstinspires.ftc.teamcode;
 import com.disnodeteam.dogecv.CameraViewDisplay;
 import com.disnodeteam.dogecv.DogeCV;
 import com.disnodeteam.dogecv.detectors.roverrukus.GoldAlignDetector;
-import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.hardware.modernrobotics.ModernRoboticsI2cGyro;
 import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
+import com.qualcomm.robotcore.hardware.CRServo;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
 import com.qualcomm.robotcore.util.ElapsedTime;
 import com.qualcomm.robotcore.util.Range;
+/**
+ * Created by Manjesh on 12/4/2018.
+ */
+@Autonomous(name="Left Side Trinity Competition Autonomous",group = "British Columbia Competition")
+public class LeftTrinityAutonomous extends LinearOpMode {
 
-import org.firstinspires.ftc.robotcore.external.navigation.AngleUnit;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesOrder;
-import org.firstinspires.ftc.robotcore.external.navigation.AxesReference;
-import org.firstinspires.ftc.robotcore.external.navigation.Orientation;
-
-@Autonomous(name="RoverDEPOT", group="Linear Opmode")
-public class NewAutonomous extends LinearOpMode {
     private ElapsedTime runtime = new ElapsedTime();
+
     //Declare all variables
-    final float CIRCUMFERENCE = (float)(4.00 * Math.PI);
+    final float CIRCUMFERENCE = (float)(3.93701 * Math.PI);
     final int ENCODERTICKS = 1680;
-    final double GEARRATIO = 0.6;
+    final double GEARRATIO = 0.67;
     final double COUNTS_PER_INCH = (ENCODERTICKS * GEARRATIO) / (CIRCUMFERENCE);
-    final double DRIVE_SPEED             = 0.9;     // Nominal speed for better accuracy.
+    final double DRIVE_SPEED             = 1.0;     // Nominal speed for better accuracy.
     final double TURN_SPEED              = 0.5;     // Nominal half speed for better accuracy.
     final double HEADING_THRESHOLD       = 1 ;      // As tight as we can make it with an integer gyro
     final double P_TURN_COEFF            = 0.1;     // Larger is more responsive, but also less stable
     final double P_DRIVE_COEFF           = 0.15;     // Larger is more responsive, but also less stable
+    final int value = 19500;
+
+
 
     //Declare all motors
-    DcMotor rightMotorFront;
-    DcMotor leftMotorFront;
-    DcMotor rightMotorBack;
-    DcMotor leftMotorBack;
-    DcMotor armMotor;
-    DcMotor liftMotor;
-    Servo flickServo;
-    BNO055IMU imu;
-    Orientation angles;
-
+    public DcMotor rightMotorFront;
+    public DcMotor leftMotorFront;
+    public DcMotor rightMotorBack;
+    public DcMotor leftMotorBack;
+    public DcMotor liftMotor;
+    public DcMotor armMotor;
+    public Servo flickServo;
+    public CRServo extendServo;
+    public Servo liftpushServo;
+    public Servo collectServo;
+    public ModernRoboticsI2cGyro gyro;
     private GoldAlignDetector detector;
 
     @Override
     public void runOpMode() throws InterruptedException
     {
-        //Looking for the names of the motors in the config
         rightMotorFront = hardwareMap.dcMotor.get("rightMotorFront");
         leftMotorFront = hardwareMap.dcMotor.get("leftMotorFront");
         rightMotorBack = hardwareMap.dcMotor.get("rightMotorBack");
@@ -54,24 +57,25 @@ public class NewAutonomous extends LinearOpMode {
         armMotor = hardwareMap.dcMotor.get("armMotor");
         liftMotor = hardwareMap.dcMotor.get("liftMotor");
         flickServo = hardwareMap.servo.get("flickServo");
+        extendServo = hardwareMap.crservo.get("extendServo");
+        liftpushServo = hardwareMap.servo.get("liftpushServo");
+        collectServo = hardwareMap.servo.get("collectServo");
         leftMotorBack.setDirection(DcMotor.Direction.REVERSE);
         leftMotorFront.setDirection(DcMotor.Direction.REVERSE);
+        rightMotorFront.setDirection(DcMotor.Direction.FORWARD);
+        rightMotorBack.setDirection(DcMotor.Direction.FORWARD);
+        liftMotor.setDirection(DcMotor.Direction.REVERSE);
         armMotor.setDirection(DcMotor.Direction.REVERSE);
-        imu = hardwareMap.get(BNO055IMU.class, "imu");
-
-        BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
-        parameters.mode = BNO055IMU.SensorMode.IMU;
-        parameters.angleUnit = BNO055IMU.AngleUnit.DEGREES;
-        parameters.loggingEnabled = false;
-
-        imu.initialize(parameters);
+        gyro = (ModernRoboticsI2cGyro) hardwareMap.get("gyro");
 
         // Send telemetry message to alert driver that we are calibrating;
         telemetry.addData(">", "Calibrating Gyro");    //
         telemetry.update();
 
+        gyro.calibrate();
+
         // make sure the gyro is calibrated before continuing
-        while (!isStopRequested() && imu.isGyroCalibrated())  {
+        while (!isStopRequested() && gyro.isCalibrating()) {
             sleep(50);
             idle();
         }
@@ -80,20 +84,23 @@ public class NewAutonomous extends LinearOpMode {
         rightMotorBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rightMotorFront.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         leftMotorBack.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        liftMotor.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
 
         telemetry.addData(">", "Robot Ready.");
-        telemetry.addData("Gyro Calibration Status", imu.getCalibrationStatus().toString());
         telemetry.update();
 
         leftMotorFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightMotorFront.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         leftMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        liftMotor.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
 
         waitForStart();
-        runtime.reset();
-
         if (opModeIsActive()) {
+            while (!isStarted()) {
+                telemetry.addData(">", "Robot Heading = %d", gyro.getIntegratedZValue());
+                telemetry.update();
+            }
             telemetry.addData("Status", "Good Luck Drivers");
 
             detector = new GoldAlignDetector();
@@ -101,82 +108,130 @@ public class NewAutonomous extends LinearOpMode {
             detector.useDefaults();
 
             // Optional Tuning
-            //detector.alignsize = 100; // How wide (in pixels) is the range in which the gold object will be aligned. (Represented by green bars in the preview)
             detector.alignPosOffset = 0; // How far from center frame to offset this alignment zone.
             detector.downscale = 0.4; // How much to downscale the input frames
 
             detector.areaScoringMethod = DogeCV.AreaScoringMethod.MAX_AREA; // Can also be PERFECT_AREA
-            //detector.perfectAreaScorer.perfectArea = 10000; // if using PERFECT_AREA scoring
             detector.maxAreaScorer.weight = 0.005;
 
             detector.ratioScorer.weight = 5;
             detector.ratioScorer.perfectRatio = 1.0;
 
-            liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-            liftMotor.setTargetPosition(4000);
-            liftMotor.setPower(1);
-            sleep(5000);
-            liftMotor.setPower(-4000);
-            liftMotor.setPower(1);
-            liftMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-
-            gyroDrive(DRIVE_SPEED, 5, 0);
+            gyro.resetZAxisIntegrator();
 
             detector.enable();
-            //Left
-            if (detector.getXPosition() > 390) {
-                strafe(DRIVE_SPEED, 40, 0);
-                gyroDrive(DRIVE_SPEED, 5, 0);
-                gyroDrive(DRIVE_SPEED, -5, 0);
-                strafe(DRIVE_SPEED, -40, 0);
-            }
+            sleep(1500);
+
             //Center
-            else if (detector.getXPosition() < 390 && detector.getXPosition() > 100) {
-                gyroDrive(DRIVE_SPEED, 5, 0);
-                gyroDrive(DRIVE_SPEED, -5, 0);
+            if (detector.getXPosition() > 180 && detector.getXPosition() < 420) {
+                detector.disable();
+                Lift(DRIVE_SPEED, value);
+                gyroTurn(DRIVE_SPEED, 45);
+                gyroHold(DRIVE_SPEED, 45, 0.5);
+                gyroDrive(DRIVE_SPEED, 3, 45);
+                gyroTurn(DRIVE_SPEED, 0);
+                gyroHold(DRIVE_SPEED, 0, 0.5);
+                gyroDrive(DRIVE_SPEED, 15, 0);
+                gyroDrive(DRIVE_SPEED, 10, 0);
+                gyroDrive(DRIVE_SPEED, 30, 0);
+                flickServo.setPosition(Servo.MIN_POSITION);
+                sleep(1000);
+                gyroDrive(DRIVE_SPEED, -50, 0);
             }
+
             //Right
-            else if (detector.getXPosition() < 99) {
-                strafe(DRIVE_SPEED, -40, 0);
-                gyroDrive(DRIVE_SPEED,5, 0);
-                gyroDrive(DRIVE_SPEED, -5, 0);
-                strafe(DRIVE_SPEED, 40, 0);
+            else if (detector.getXPosition() > 420){
+                detector.disable();
+                Lift(DRIVE_SPEED, value);
+                gyroTurn(DRIVE_SPEED, 45);
+                gyroHold(DRIVE_SPEED, 45, 0.5);
+                gyroDrive(DRIVE_SPEED, 3, 45);
+                gyroTurn(DRIVE_SPEED, -45);
+                gyroHold(DRIVE_SPEED, -45, 0.5);
+                gyroDrive(DRIVE_SPEED, 25, -45);
+                gyroTurn(DRIVE_SPEED, 0);
+                gyroHold(DRIVE_SPEED, 0, 0.5);
+                gyroDrive(DRIVE_SPEED, 10, 0);
+                gyroTurn(DRIVE_SPEED,35);
+                gyroHold(DRIVE_SPEED,35,0.5);
+                gyroDrive(DRIVE_SPEED, 35, 35);
+                flickServo.setPosition(Servo.MIN_POSITION);
+                sleep(1000);
+                gyroDrive(DRIVE_SPEED, -10, 35);
+                gyroTurn(DRIVE_SPEED,90);
+                gyroHold(DRIVE_SPEED,90,0.5);
+                gyroDrive(DRIVE_SPEED, 30, 90);
             }
-            detector.disable();
 
-            armMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-            armMotor.setTargetPosition(-400);
-            armMotor.setPower(1);
-            armMotor.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-            sleep(3000);
-            flickServo.setPosition(Servo.MAX_POSITION);
-            gyroDrive(DRIVE_SPEED, 20.0, 0.0);    // Drive FWD 15 inches
-            gyroTurn(TURN_SPEED, -90.0);     // Turn  CCW to 90 Degrees
-            gyroHold(TURN_SPEED, -90.0, 0.5);    // Hold -90 Deg heading for a 1/2 second
-            gyroDrive(DRIVE_SPEED, -35.0, -90.0);    // Drive FWD 41 inches with heading -85 Deg
-            gyroTurn(TURN_SPEED, -45.0);      // Turn CW to Origin angle
-            gyroHold(TURN_SPEED, -45.0, 0.5);     // Hold 0 Deg heading for a 1/2 second
-            gyroDrive(DRIVE_SPEED, -56.0, -45.0);
-            sleep(1000);
-            flickServo.setPosition(Servo.MIN_POSITION);
-            sleep(1000);
-            flickServo.setPosition(Servo.MAX_POSITION);
-            sleep(1000);
-            flickServo.setPosition(Servo.MIN_POSITION);
-            sleep(1000);
-            flickServo.setPosition(Servo.MAX_POSITION);
-            sleep(1000);
-            gyroDrive(DRIVE_SPEED, 63.0, -45.0);
-            gyroTurn(TURN_SPEED, -10.0);
-            gyroHold(TURN_SPEED, -10.0, 0.5);
-            gyroDrive(DRIVE_SPEED, 45.0, -10.0);
+            //Left
+            else if (detector.getXPosition() < 180) {
+                detector.disable();
+                Lift(DRIVE_SPEED, value);
+                gyroTurn(DRIVE_SPEED, 45);
+                gyroHold(DRIVE_SPEED, 45, 0.5);
+                gyroDrive(DRIVE_SPEED, 3, 45);
+                gyroTurn(DRIVE_SPEED, 45);
+                gyroHold(DRIVE_SPEED, 45, 0.5);
+                gyroDrive(DRIVE_SPEED, 20, 45);
+                gyroTurn(DRIVE_SPEED, 0);
+                gyroHold(DRIVE_SPEED, 0, 0.5);
+                gyroDrive(DRIVE_SPEED, 15, 0);
+                gyroTurn(DRIVE_SPEED, -15);
+                gyroHold(DRIVE_SPEED, -15, 0.5);
+                gyroDrive(DRIVE_SPEED, 45, -15);
+                flickServo.setPosition(Servo.MIN_POSITION);
+                sleep(1000);
+                gyroTurn(DRIVE_SPEED,-45);
+                gyroHold(DRIVE_SPEED,-45,0.5);
+                gyroDrive(DRIVE_SPEED, -15, -45);
+            }
 
             telemetry.addData("Path", "Complete");
             telemetry.update();
+
+            StopDriving();
+        }
+
+    }
+
+    public void StopDriving ()
+    {
+        leftMotorFront.setPower(0);
+        rightMotorBack.setPower(0);
+        rightMotorFront.setPower(0);
+        leftMotorBack.setPower(0);
+        liftMotor.setPower(0);
+    }
+
+    public void Lift (double power, int distance)
+    {
+        int moveNumber;
+        int move;
+
+        // Ensure that the opmode is still active
+        if (opModeIsActive())
+        {
+            // Determine new target position, and pass to motor controller
+            moveNumber = (int)(distance);
+            move = liftMotor.getCurrentPosition() + moveNumber;
+
+            // Set Target and Turn On RUN_TO_POSITION
+            liftMotor.setTargetPosition(move);
+            liftMotor.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+
+            // start motion
+            power = Range.clip(Math.abs(power), 0.0, 1.0);
+            liftMotor.setPower(power);
+
+            while (opModeIsActive() && liftMotor.getCurrentPosition() < liftMotor.getTargetPosition()) {
+                telemetry.addData("Current Value", liftMotor.getCurrentPosition());
+                telemetry.addData("Target Value", liftMotor.getTargetPosition());
+                telemetry.update();
+                idle();
+            }
         }
     }
-    public  void strafe (double speed, double distance, double angle){
+    public void strafe ( double speed, double distance, double angle) {
 
         int     newLeftTargetFront;
         int     newLeftTargetBack;
@@ -195,8 +250,8 @@ public class NewAutonomous extends LinearOpMode {
             // Determine new target position, and pass to motor controller
             moveCounts = (int)(distance * COUNTS_PER_INCH);
             newLeftTargetFront = leftMotorFront.getCurrentPosition() + moveCounts;
-            newLeftTargetBack = leftMotorBack.getCurrentPosition() + moveCounts;
-            newRightTargetFront = rightMotorFront.getCurrentPosition() + moveCounts;
+            newLeftTargetBack = leftMotorBack.getCurrentPosition() - moveCounts;
+            newRightTargetFront = rightMotorFront.getCurrentPosition() - moveCounts;
             newRightTargetBack = rightMotorBack.getCurrentPosition() + moveCounts;
 
             // Set Target and Turn On RUN_TO_POSITION
@@ -211,7 +266,7 @@ public class NewAutonomous extends LinearOpMode {
             leftMotorBack.setMode(DcMotor.RunMode.RUN_TO_POSITION);
 
             // start motion.
-            speed = Range.clip(Math.abs(speed), 0.0, 1.0);
+            speed = Range.clip(Math.abs(speed), -1.0, 1.0);
             rightMotorFront.setPower(speed);
             rightMotorBack.setPower(speed);
             leftMotorFront.setPower(speed);
@@ -266,6 +321,7 @@ public class NewAutonomous extends LinearOpMode {
             leftMotorBack.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         }
     }
+
     public void gyroDrive ( double speed, double distance, double angle) {
 
         int     newLeftTargetFront;
@@ -426,7 +482,7 @@ public class NewAutonomous extends LinearOpMode {
         double robotError;
 
         // calculate error in -179 to +180 range  (
-        robotError = targetAngle - imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES).firstAngle;
+        robotError = targetAngle - gyro.getIntegratedZValue();
         while (robotError > 180)  robotError -= 360;
         while (robotError <= -180) robotError += 360;
         return robotError;
